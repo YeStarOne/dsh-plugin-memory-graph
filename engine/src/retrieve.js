@@ -52,12 +52,13 @@ function scoreNode(node, similarity, nowMs, w) {
 
 /**
  * 向量召回。
- * 只扫 nodeType==='event' 的节点 —— 实体/概念只用来建图和做子图扩展。
+ * 扫 event 与 summary 节点 —— 实体/概念只用来建图和做子图扩展；
+ * summary 是摘要层产出的长期主题，和事件一样直接进提示词。
  */
 function recall(store, queryVec, topK) {
   const hits = [];
   for (const node of store.nodes.values()) {
-    if (node.nodeType !== 'event') continue;
+    if (node.nodeType !== 'event' && node.nodeType !== 'summary') continue;
     if (!node.vector || node.vector.length !== queryVec.length) continue;
     hits.push({ node, similarity: cosine(queryVec, node.vector) });
   }
@@ -87,7 +88,7 @@ function expand(store, seeds, hopDepth, maxNodes) {
         visited.add(other);
         const node = store.getNode(other);
         if (!node) continue;
-        if (node.nodeType === 'event') {
+        if (node.nodeType === 'event' || node.nodeType === 'summary') {
           found.set(node.id, { node, similarity: 0, viaGraph: true });
           if (found.size >= maxNodes) return Array.from(found.values());
         }

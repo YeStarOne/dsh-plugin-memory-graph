@@ -29,6 +29,7 @@ const {
 const { retrieve, DEFAULTS: RETRIEVAL_DEFAULTS } = require('./retrieve');
 const { maintain, DEFAULTS: DECAY_DEFAULTS } = require('./decay');
 const providers = require('./providers');
+const { TEMPLATES, fill } = require('./prompts');
 
 const newId = () => crypto.randomUUID();
 
@@ -465,6 +466,161 @@ class MemoryEngine {
 
   deleteNode(nodeId) {
     return this.store.deleteNode(nodeId);
+  }
+
+
+  // ---------------- 管理指令支撑（QQ「记住/忘掉/整理记忆」） ----------------
+
+  /**
+   * 直接写入一条钉住事件（指令「记住：…」用）。不走 LLM 抽取，内容即事件文本；
+   * custom=true：永不衰减 + 检索加分。同一内容已存在时改为钉住旧条目。
+   * @returns {{node: object, deduped: boolean}|null} 失败返回 null
+   */
+  async addCustomEvent(content, opts = {}) {
+    const text = String(content || '').trim();
+    if (text.length < 2 || text.length > 500) return null;
+    const now = Date.now();
+    const dup = this._findEventByText(text);
+    if (dup) {
+      this.store.updateNode(dup.id, {
+        custom: true,
+        importance: Math.max(dup.importance, opts.importance ?? 1),
+        lastUsedAt: now,
+        instanceCount: (dup.instanceCount || 1) + 1
+      });
+      await this._embedNode(dup.id, dup.content);
+      this.store.saveMeta();
+      return { node: this.store.getNode(dup.id), deduped: true };
+    }
+    const node = {
+      id: newId(), nodeType: 'event', content: text,
+      importance: opts.importance ?? 1,
+      eventTime: stamp(now),
+      createdAt: now, updatedAt: now, lastUsedAt: now,
+      instanceCount: 1, custom: true,
+      sourceConversation: '', metadata: { pinned: true }
+    };
+    this.store.putNode(node);
+    await this._embedNode(node.id, text);
+    this.store.saveMeta();
+    return { node: this.store.getNode(node.id), deduped: false };
+  }
+
+  /** 给单个节点补/刷向量（失败静默——节点仍在，只是暂不参与召回）。 */
+  async _embedNode(nodeId, text) {
+    try {
+      const [v] = await this.provider.embed([text]);
+      if (v && this.store.getNode(nodeId)) {
+        this.store.updateNode(nodeId, { vector: Array.from(normalize(v)) });
+      }
+    } catch (_) { /* 离线/端点抖动都不致命 */ }
+  }
+
+  /**
+   * 按内容删除记忆（指令「忘掉 …」用）。
+   * 归一化精确匹配优先，其次子串匹配（仅 event/summary，不动实体与概念）。
+   * @returns {Array<{id, content, nodeType}>} 实际删除的节点
+   */
+  forgetByText(query, opts = {}) {
+    const q = String(query || '').trim();
+    if (!q) return [];
+    const key = normalizeEventText(q);
+    if (!key) return [];
+    const hits = [];
+    for (const n of this.store.allNodes()) {
+      if (n.nodeType !== 'event' && n.nodeType !== 'summary') continue;
+      const nk = normalizeEventText(n.content);
+      if (nk === key || (key.length >= 2 && nk.includes(key))) hits.push(n);
+    }
+    const removed = [];
+    for (const n of hits.slice(0, opts.limit ?? 10)) {
+      if (this.store.deleteNode(n.id)) removed.push({ id: n.id, content: n.content, nodeType: n.nodeType });
+    }
+    if (removed.length) this.store.saveMeta();
+    return removed;
+  }
+
+  /**
+   * 摘要层：把同一实体下的事件交给 LLM 归纳成「长期主题」摘要节点
+   * （nodeType='summary'，参与检索）。幂等——同一主题只保留一份，重跑即改写。
+   * @returns {Promise<Array<{topic, content, updated}>>}
+   */
+  async summarize(opts = {}) {
+    const cfg = {
+      maxTopics: 5, minEvents: 3, maxEventsPerTopic: 30,
+      timeoutMs: this.extraction.timeoutMs,
+      ...(opts || {})
+    };
+    // 统计每个实体挂着多少事件
+    const count = new Map();
+    for (const e of this.store.allEdges()) {
+      if (e.relation !== 'participates_in') continue;
+      const a = this.store.getNode(e.sourceId), b = this.store.getNode(e.targetId);
+      if (a && b && a.nodeType === 'entity' && b.nodeType === 'event') count.set(a.id, (count.get(a.id) || 0) + 1);
+      if (a && b && b.nodeType === 'entity' && a.nodeType === 'event') count.set(b.id, (count.get(b.id) || 0) + 1);
+    }
+    const ranked = [...count.entries()]
+      .filter(([, c]) => c >= cfg.minEvents)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, cfg.maxTopics);
+
+    const out = [];
+    for (const [entId, c] of ranked) {
+      const ent = this.store.getNode(entId);
+      if (!ent) continue;
+      const events = this.store.edgesOf(entId)
+        .map((e) => this.store.getNode(e.sourceId === entId ? e.targetId : e.sourceId))
+        .filter((n) => n && n.nodeType === 'event')
+        .sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0))
+        .slice(0, cfg.maxEventsPerTopic);
+      if (events.length < cfg.minEvents) continue;
+
+      const existing = this.store.allNodes().find(
+        (n) => n.nodeType === 'summary' && n.metadata && n.metadata.topic === ent.content
+      );
+      const built = fill(TEMPLATES.summarizeTemplate, {
+        persona_name: this.persona.personaName,
+        gender_term: this.persona.genderTerm,
+        topic: ent.content,
+        count: events.length,
+        previous: existing ? existing.content : '（暂无）',
+        events: events.map((ev, i) => (i + 1) + '. ' + ev.content).join('\n')
+      });
+      let text = '';
+      try {
+        text = String(await this.provider.chat([{ role: 'user', content: built }], { timeoutMs: cfg.timeoutMs })).trim();
+      } catch (e) {
+        this.logger('summarize_fail', { topic: ent.content, error: e.message });
+        continue;
+      }
+      text = text.replace(/^\s*#+.*$/gm, '').trim().slice(0, 800);
+      if (text.length < 10) continue;
+
+      const now = Date.now();
+      if (existing) {
+        this.store.updateNode(existing.id, {
+          content: text, updatedAt: now, lastUsedAt: now,
+          importance: Math.max(0.8, existing.importance || 0)
+        });
+        await this._embedNode(existing.id, text);
+        out.push({ topic: ent.content, content: text, updated: true });
+      } else {
+        const node = {
+          id: newId(), nodeType: 'summary', content: text,
+          importance: 0.8,
+          createdAt: now, updatedAt: now, lastUsedAt: now,
+          instanceCount: 1, custom: false,
+          metadata: { topic: ent.content }
+        };
+        this.store.putNode(node);
+        this._link(entId, node.id, 'summarized_by');
+        await this._embedNode(node.id, text);
+        out.push({ topic: ent.content, content: text, updated: false });
+      }
+    }
+    if (out.length) this.store.saveMeta();
+    this.logger('summarize_done', { topics: out.length });
+    return out;
   }
 
   /** 跑一次衰减 + 裁剪。建议每天启动时调一次。 */

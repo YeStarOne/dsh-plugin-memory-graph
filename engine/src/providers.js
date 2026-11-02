@@ -121,6 +121,7 @@ function offline(opts = {}) {
 
     async chat(messages) {
       const prompt = messages.map((m) => m.content).join('\n');
+      if (prompt.includes('主题归纳任务')) return summarizeByRules(prompt);
       if (prompt.includes('事件提取任务')) return JSON.stringify(extractByRules(prompt));
       if (prompt.includes('概念归纳任务')) return JSON.stringify(conceptsByRules(prompt));
       if (prompt.includes('实体关系提取任务')) return JSON.stringify([]);
@@ -312,6 +313,13 @@ function mock(opts = {}) {
       return list.map((t) => hashEmbed(String(t), dim));
     }
   };
+}
+
+/** 离线归纳：把事件清单前几行拼成一句，仅用于验证管线。 */
+function summarizeByRules(prompt) {
+  const lines = prompt.split('\n').filter((l) => /^\s*\d+[.、]/.test(l)).slice(0, 3)
+    .map((l) => l.replace(/^\s*\d+[.、]\s*/, "").trim());
+  return '（离线归纳）' + lines.join('；');
 }
 
 module.exports = { openai, offline, mock, postJSON };

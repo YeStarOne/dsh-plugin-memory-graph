@@ -153,6 +153,7 @@ function deployFiles(target) {
 const BRIDGE_PATCHES = [
     {
         name: 'import',
+        marker: "from './memory-hub.js'",
         anchor: "import { InterimTracker } from './interim.js';",
         patch: (text) => text.replace(
             "import { InterimTracker } from './interim.js';",
@@ -161,6 +162,7 @@ const BRIDGE_PATCHES = [
     },
     {
         name: 'constructor',
+        marker: "memory-hub: constructed",
         anchor: '        this.deps = deps;',
         patch: (text) => text.replace(
             '        this.deps = deps;',
@@ -180,6 +182,7 @@ const BRIDGE_PATCHES = [
     },
     {
         name: 'dispatch-let',
+        marker: 'let final = this.prefixTurn(chatId, text);',
         anchor: '        const final = this.prefixTurn(chatId, text);',
         patch: (text) => text.replace(
             '        const final = this.prefixTurn(chatId, text);',
@@ -187,11 +190,50 @@ const BRIDGE_PATCHES = [
         ),
     },
     {
-        name: 'dispatch-recall',
+        name: 'dispatch-memory',
+        marker: 'memory-hub: command',
         anchor: '        chat.lastActivityAt = Date.now();',
-        patch: (text) => text.replace(
-            '        chat.lastActivityAt = Date.now();',
-            `        chat.lastActivityAt = Date.now();
+        patch: (text) => {
+            // v1.0/1.1 旧安装：召回块已在，只补命令拦截段（插在召回块注释前）
+            if (text.includes('memory-hub: prepend long-term memory recall')) {
+                return text.replace(
+                    '        // memory-hub: prepend long-term memory recall before this turn is',
+                    `        // memory-hub: command — in-chat management (记住：… / 忘掉 … /
+        // 我的记忆 / 记忆统计 / 整理记忆). A matched command is answered
+        // directly and the turn is NOT dispatched to the model. Fictional
+        // scene turns (adoptedLifeTurn) are skipped — their "记住：…" is
+        // roleplay text, not a user command.
+        if (this.memory !== undefined && this.memory.enabled()) {
+            const sceneArg = arguments.length > 4 ? arguments[4] : undefined;
+            if (sceneArg == null || sceneArg.adoptedLifeTurn == null) {
+                const commandReply = await this.memory.handleCommand?.(chatId, text);
+                if (commandReply !== null && commandReply !== undefined) {
+                    await this.sendToChat(chatId, commandReply);
+                    return;
+                }
+            }
+        }
+        // memory-hub: prepend long-term memory recall before this turn is`
+                );
+            }
+            // 全新安装：命令拦截 + 召回注入一起落
+            return text.replace(
+                '        chat.lastActivityAt = Date.now();',
+                `        chat.lastActivityAt = Date.now();
+        // memory-hub: command — in-chat management (记住：… / 忘掉 … / 我的记忆
+        // / 记忆统计 / 整理记忆). A matched command is answered directly and
+        // the turn is NOT dispatched to the model. Fictional scene turns
+        // (adoptedLifeTurn) are skipped — their "记住：…" is roleplay text.
+        if (this.memory !== undefined && this.memory.enabled()) {
+            const sceneArg = arguments.length > 4 ? arguments[4] : undefined;
+            if (sceneArg == null || sceneArg.adoptedLifeTurn == null) {
+                const commandReply = await this.memory.handleCommand?.(chatId, text);
+                if (commandReply !== null && commandReply !== undefined) {
+                    await this.sendToChat(chatId, commandReply);
+                    return;
+                }
+            }
+        }
         // memory-hub: prepend long-term memory recall before this turn is
         // dispatched (empty string = nothing relevant). Also pair the user
         // message for later extraction. When a 5th dispatch argument carrying
@@ -210,10 +252,12 @@ const BRIDGE_PATCHES = [
                 }
             }
         }`
-        ),
+            );
+        },
     },
     {
         name: 'turn-start',
+        marker: 'this.memory?.beginTurn(chatId);',
         anchor: '            this.deferred.onTurnStart(chatId, session.id);',
         patch: (text) => text.replace(
             '            this.deferred.onTurnStart(chatId, session.id);',
@@ -222,6 +266,7 @@ const BRIDGE_PATCHES = [
     },
     {
         name: 'assistant-message',
+        marker: 'this.memory?.noteAssistant(chatId, event.data.message);',
         anchor: "        if (event.type === 'assistant/message') {",
         patch: (text) => text.replace(
             "        if (event.type === 'assistant/message') {",
@@ -233,6 +278,7 @@ const BRIDGE_PATCHES = [
     },
     {
         name: 'turn-end',
+        marker: "this.memory?.finishTurn(chatId, reason.kind === 'completed');",
         anchor: '            const reason = event.data.reason;',
         patch: (text) => text.replace(
             '            const reason = event.data.reason;',
@@ -244,6 +290,7 @@ const BRIDGE_PATCHES = [
     },
     {
         name: 'stop',
+        marker: 'memory-hub: flush buffered turns before the bridge stops.',
         anchor: '    async stop() {\n        this.stopping = true;',
         patch: (text) => text.replace(
             '    async stop() {\n        this.stopping = true;',
@@ -327,24 +374,29 @@ function applyPatches(target) {
     const indexFile = join(target, 'lib', 'index.js');
     let bridge = readText(bridgeFile);
 
-    if (bridge.includes(MARKER)) {
-        log('  = bridge.js 已含 memory-hub 挂钩，跳过补丁（部署文件已刷新）');
-        verifyIndexConfig(target);
-        return;
-    }
-
     // 备份（只在首次安装时做，避免二次备份覆盖原始备份）
     const bakBridge = join(target, 'lib', `bridge.js.${BAK_TAG}`);
     const bakIndex = join(target, 'lib', `index.js.${BAK_TAG}`);
     if (!existsSync(bakBridge)) copyFileSync(bridgeFile, bakBridge);
 
+    // 逐补丁幂等：每个补丁有自己的 marker（旧版本安装升级时只补缺的部分）
+    let applied = 0;
     for (const p of BRIDGE_PATCHES) {
+        if (p.marker && bridge.includes(p.marker)) {
+            log('  = bridge.js 补丁 ' + p.name + ' 已存在，跳过');
+            continue;
+        }
         const before = bridge;
         bridge = p.patch(bridge);
         if (bridge === before) die(`  bridge.js 补丁 ${p.name} 锚点未命中，已中止（原文件未改动）。版本不兼容时请提 issue 并附 dsh-onebot-qq 版本号。`);
+        applied++;
     }
-    writeFileSync(bridgeFile, bridge, 'utf8');
-    log('  ✓ bridge.js 已打 7 处挂钩（备份: ' + basename(bakBridge) + '）');
+    if (applied > 0) {
+        writeFileSync(bridgeFile, bridge, 'utf8');
+        log('  ✓ bridge.js 补丁应用 ' + applied + ' 处（备份: ' + basename(bakBridge) + '）');
+    } else {
+        log('  = bridge.js 无需变更');
+    }
 
     verifyIndexConfig(target);
 }

@@ -62,6 +62,7 @@
   .dot.entity { background: var(--entity); }
   .dot.event { background: #fff; border: 2px solid var(--event-line); width: 9px; height: 9px; }
   .dot.concept { background: var(--concept); border: 1px solid var(--concept-line); transform: rotate(45deg); width: 9px; height: 9px; border-radius: 2px; }
+  .dot.summary { background: var(--concept); border: 1.5px solid var(--accent); border-radius: 3px; width: 11px; height: 8px; }
   .legend { font-size: 12.5px; color: var(--ink-dim); display: flex; flex-direction: column; gap: 6px; }
   .legend .row { display: flex; align-items: center; gap: 8px; }
   #stage { position: relative; padding: 0; overflow: hidden; }
@@ -166,6 +167,7 @@
       <label class="check"><input type="checkbox" id="tEntity" checked><span class="dot entity"></span>实体</label>
       <label class="check"><input type="checkbox" id="tEvent" checked><span class="dot event"></span>事件</label>
       <label class="check"><input type="checkbox" id="tConcept" checked><span class="dot concept"></span>概念</label>
+      <label class="check"><input type="checkbox" id="tSummary" checked><span class="dot summary"></span>摘要</label>
     </div>
     <div class="sect">
       <div class="label">筛选</div>
@@ -178,6 +180,7 @@
         <div class="row"><span class="dot entity"></span>实体节点</div>
         <div class="row"><span class="dot event"></span>事件节点</div>
         <div class="row"><span class="dot concept"></span>概念节点</div>
+        <div class="row"><span class="dot summary"></span>摘要节点（长期主题）</div>
         <div class="row"><span style="width:11px;height:11px;border-radius:50%;border:2.5px solid var(--gold);flex:none"></span>钉住的记忆</div>
       </div>
     </div>
@@ -277,7 +280,7 @@ window.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer.fi
 
 /* ================= 状态 ================= */
 const state = {
-  days: 30, month: '', types: { entity: true, event: true, concept: true },
+  days: 30, month: '', types: { entity: true, event: true, concept: true, summary: true },
   impOnly: false, customOnly: false,
   selected: null, searchHits: new Set(), query: ''
 };
@@ -460,6 +463,13 @@ function shapeFor(n) {
     if (n.custom) d.setAttribute('stroke', '#c99a3f'), d.setAttribute('stroke-width', 2.5);
     return d;
   }
+  if (n.nodeType === 'summary') {
+    const w = 14 + Math.min(8, degv), h = 8;
+    const r = el('rect', { x: -w, y: -h, width: 2 * w, height: 2 * h, rx: 4,
+      fill: '#e5cf92', stroke: '#b25d61', 'stroke-width': 1.6 });
+    if (n.custom) r.setAttribute('stroke', '#c99a3f'), r.setAttribute('stroke-width', 2.8);
+    return r;
+  }
   const w = 11 + Math.min(9, degv), h = 7;
   const r = el('rect', { x: -w, y: -h, width: 2 * w, height: 2 * h, rx: 3.5,
     fill: '#ffffff', stroke: '#b25d61', 'stroke-width': 1.4 });
@@ -486,7 +496,7 @@ function selectNode(id) {
   const n = nodeById.get(id);
   const box = document.getElementById('detail');
   if (!n) { box.innerHTML = '<div class="empty">点击图中节点查看详情。</div>'; return; }
-  const typeCN = { entity: '实体', event: '事件', concept: '概念' }[n.nodeType] || n.nodeType;
+  const typeCN = { entity: '实体', event: '事件', concept: '概念', summary: '摘要' }[n.nodeType] || n.nodeType;
   const conns = [];
   for (const e of DATA.edges) {
     if (e.sourceId === id) conns.push({ other: e.targetId, rel: e.relation, dir: '→' });
@@ -653,7 +663,7 @@ document.querySelectorAll('#timeSeg button').forEach(b => b.addEventListener('cl
   rebuild(false);
 }));
 document.getElementById('monthSel').addEventListener('change', e => { state.month = e.target.value; rebuild(false); });
-for (const [id, key] of [['tEntity', 'entity'], ['tEvent', 'event'], ['tConcept', 'concept']]) {
+for (const [id, key] of [['tEntity', 'entity'], ['tEvent', 'event'], ['tConcept', 'concept'], ['tSummary', 'summary']]) {
   document.getElementById(id).addEventListener('change', e => { state.types[key] = e.target.checked; rebuild(false); });
 }
 document.getElementById('impOnly').addEventListener('change', e => { state.impOnly = e.target.checked; rebuild(false); });

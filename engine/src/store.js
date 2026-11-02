@@ -227,7 +227,7 @@ deleteNode(id) {
   edgeCount() { return this.edges.size; }
 
   countByType() {
-    const out = { event: 0, entity: 0, concept: 0 };
+    const out = { event: 0, entity: 0, concept: 0, summary: 0 };
     for (const n of this.nodes.values()) {
       if (out[n.nodeType] !== undefined) out[n.nodeType]++;
     }
