@@ -1,4 +1,4 @@
-# dsh-plugin-memory-graph · Good Memory for Big Fish
+# dsh-plugin-memory-graph · Good Memory for Big Fat Fish
 
 > 🇨🇳 **中文主版本（含图谱示意图与完整文档）见 [README.md](README.md)。**
 
