@@ -10,10 +10,11 @@
     <line x1="452" y1="96"  x2="512" y2="88"/>
     <line x1="452" y1="210" x2="510" y2="204"/>
     <line x1="452" y1="226" x2="528" y2="252"/>
-    <line x1="446" y1="330" x2="512" y2="336"/>
+    <line x1="462" y1="334" x2="482" y2="334"/>
     <line x1="536" y1="80"  x2="622" y2="72"/>
+    <line x1="452" y1="118" x2="709" y2="148"/>
     <line x1="548" y1="196" x2="636" y2="188"/>
-    <line x1="468" y1="330" x2="628" y2="330"/>
+    <line x1="504" y1="332" x2="626" y2="330"/>
   </g>
   <g stroke="#c9a13b" stroke-width="1.2" stroke-dasharray="4 3">
     <line x1="462" y1="216" x2="522" y2="196"/>
@@ -34,16 +35,16 @@
     <circle cx="524" cy="84" r="9" fill="#b25d61"/>
     <circle cx="516" cy="200" r="9" fill="#b25d61"/>
     <circle cx="536" cy="258" r="7" fill="#c9898c"/>
-    <circle cx="478" cy="332" r="9" fill="#b25d61"/>
-    <circle cx="648" cy="68" r="7" fill="#c9898c"/>
+    <circle cx="494" cy="334" r="9" fill="#b25d61"/>
+    <circle cx="720" cy="150" r="7" fill="#c9898c"/>
   </g>
   <g font-size="12" fill="#3d3436" text-anchor="middle" font-weight="600">
     <text x="140" y="248">用户</text>
     <text x="524" y="112">爬山</text>
     <text x="516" y="228" fill="#a1741f" font-weight="700">草莓蛋糕</text>
     <text x="536" y="282">甜品店</text>
-    <text x="478" y="360">钢琴</text>
-    <text x="648" y="94">登山鞋</text>
+    <text x="494" y="362">钢琴</text>
+    <text x="720" y="176">登山鞋</text>
   </g>
 
   <!-- 钉住高亮（金环） -->

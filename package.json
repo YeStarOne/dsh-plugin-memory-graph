@@ -28,6 +28,7 @@
     "bin",
     "docs",
     "examples",
+    "viewer",
     "README.md",
     "README.en.md",
     "CHANGELOG.md",
