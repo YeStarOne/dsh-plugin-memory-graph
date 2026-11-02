@@ -1,0 +1,90 @@
+<svg width="880" height="400" viewBox="0 0 880 400" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI','Microsoft YaHei',sans-serif">
+  <rect x="1" y="1" width="878" height="398" rx="16" fill="#faf6f4" stroke="#eadfdf"/>
+  <text x="440" y="36" text-anchor="middle" font-size="15" font-weight="700" fill="#3d3436">一份记忆长这样：事件 · 实体 · 概念，彼此连成图谱（示意数据）</text>
+
+  <!-- edges -->
+  <g stroke="#d9c7c8" stroke-width="1.4">
+    <line x1="168" y1="192" x2="292" y2="118"/>
+    <line x1="172" y1="212" x2="288" y2="222"/>
+    <line x1="168" y1="228" x2="292" y2="302"/>
+    <line x1="452" y1="96"  x2="512" y2="88"/>
+    <line x1="452" y1="210" x2="510" y2="204"/>
+    <line x1="452" y1="226" x2="528" y2="252"/>
+    <line x1="446" y1="330" x2="512" y2="336"/>
+    <line x1="536" y1="80"  x2="622" y2="72"/>
+    <line x1="548" y1="196" x2="636" y2="188"/>
+    <line x1="468" y1="330" x2="628" y2="330"/>
+  </g>
+  <g stroke="#c9a13b" stroke-width="1.2" stroke-dasharray="4 3">
+    <line x1="462" y1="216" x2="522" y2="196"/>
+  </g>
+
+  <!-- edge relation labels -->
+  <g font-size="9.5" fill="#b09a9d">
+    <text x="215" y="145">participates_in</text>
+    <text x="212" y="210">participates_in</text>
+    <text x="216" y="278">participates_in</text>
+    <text x="565" y="132">conceptualized_as</text>
+    <text x="575" y="252">conceptualized_as</text>
+  </g>
+
+  <!-- 实体节点（圆） -->
+  <g>
+    <circle cx="140" cy="210" r="18" fill="#b25d61"/>
+    <circle cx="524" cy="84" r="9" fill="#b25d61"/>
+    <circle cx="516" cy="200" r="9" fill="#b25d61"/>
+    <circle cx="536" cy="258" r="7" fill="#c9898c"/>
+    <circle cx="478" cy="332" r="9" fill="#b25d61"/>
+    <circle cx="648" cy="68" r="7" fill="#c9898c"/>
+  </g>
+  <g font-size="12" fill="#3d3436" text-anchor="middle" font-weight="600">
+    <text x="140" y="248">用户</text>
+    <text x="524" y="112">爬山</text>
+    <text x="516" y="228" fill="#a1741f" font-weight="700">草莓蛋糕</text>
+    <text x="536" y="282">甜品店</text>
+    <text x="478" y="360">钢琴</text>
+    <text x="648" y="94">登山鞋</text>
+  </g>
+
+  <!-- 钉住高亮（金环） -->
+  <circle cx="516" cy="200" r="17" fill="none" stroke="#c99a3f" stroke-width="2.5" stroke-dasharray="5 3"/>
+
+  <!-- 事件节点（圆角矩形） -->
+  <g fill="#ffffff" stroke="#b25d61" stroke-width="1.5">
+    <rect x="288" y="100" width="164" height="34" rx="9"/>
+    <rect x="292" y="206" width="160" height="34" rx="9"/>
+    <rect x="282" y="314" width="180" height="34" rx="9"/>
+  </g>
+  <g font-size="12.5" fill="#3d3436" text-anchor="middle">
+    <text x="370" y="122">约了周末一起去爬山</text>
+    <text x="372" y="228">最喜欢吃草莓蛋糕</text>
+    <text x="372" y="336">在学钢琴，学了三年</text>
+  </g>
+  <g font-size="10" fill="#9a8d90" text-anchor="middle">
+    <text x="370" y="94">3 天前 · 重要度 0.78</text>
+    <text x="372" y="256" fill="#c99a3f">12 天前 · 重要度 0.90 · 已钉住</text>
+    <text x="372" y="368">1 个月前 · 重要度 0.65</text>
+  </g>
+
+  <!-- 概念节点（菱形） -->
+  <g fill="#e5cf92" stroke="#b58b2a" stroke-width="1.2">
+    <rect x="622" y="56" width="26" height="26" rx="3" transform="rotate(45 635 69)"/>
+    <rect x="630" y="176" width="26" height="26" rx="3" transform="rotate(45 643 189)"/>
+    <rect x="620" y="316" width="26" height="26" rx="3" transform="rotate(45 633 329)"/>
+  </g>
+  <g font-size="12" fill="#8f6f1f" text-anchor="middle" font-weight="600">
+    <text x="697" y="74">户外活动</text>
+    <text x="705" y="194">甜食</text>
+    <text x="697" y="334">乐器</text>
+  </g>
+
+  <!-- 图例 -->
+  <g font-size="11" fill="#6d5f63">
+    <circle cx="778" cy="330" r="6" fill="#b25d61"/>
+    <text x="790" y="334">实体</text>
+    <rect x="768" y="346" width="18" height="11" rx="4" fill="#ffffff" stroke="#b25d61"/>
+    <text x="790" y="356">事件</text>
+    <rect x="771" y="366" width="12" height="12" rx="2" fill="#e5cf92" stroke="#b58b2a" transform="rotate(45 777 372)"/>
+    <text x="790" y="377">概念</text>
+  </g>
+</svg>

@@ -1,38 +1,85 @@
-# dsh-plugin-memory-graph
+<div align="center">
 
-给 DSH（DeepSeek Harness）QQ 机器人加一套**会遗忘的长期记忆图谱**：对话被自动压缩成事件与关系，回复前把相关记忆注进上下文，长期不用的记忆按遗忘曲线淡出。
+<img src="docs/assets/graph-preview.svg" alt="记忆图谱示意图" width="880">
 
-**English**: see [README.en.md](README.en.md)
+# 🐟 大鱼好记性
 
-```text
-用户：周末去爬山怎么样？
-（系统悄悄注入：- 用户上次约了周日去爬山，提到记得带防晒（3天前）
-                - 用户怕晒，夏天出门必涂防晒霜（32天前））
-角色：可以呀！防晒霜我还记得你说要带，这次别忘了涂——上次你可是被晒红了。
+**都说鱼只有七秒记忆 —— 你的大鱼，不该只有七秒。**
+
+给 [DSH](https://github.com/mario841859784/dsh-onebot)（DeepSeek Harness）QQ 机器人装上一套**会遗忘的长期记忆图谱**：
+聊天被自动整理成事件与关系，回复前自动想起该想起的事，久不提起的记忆按遗忘曲线慢慢淡去。
+
+零依赖 · 纯本地 · 任何 OpenAI 兼容模型都能喂 · 双击就能看图谱
+
+[快速开始](#-快速开始) · [工作原理](#-它是怎么做到的) · [可视化](#-看看她的记忆长什么样) · [踩坑手册](docs/pitfalls.md) · [English](README.en.md)
+
+</div>
+
+---
+
+## 🥺 没有记忆的大鱼，每天都刚醒来
+
+> **你**：周末去爬山怎么样？
+>
+> **没有记忆的她**：好呀！要带什么装备吗？（第无数次问出这句话）
+>
+> **有大鱼好记性的她**：可以呀！你上次说山顶风大记得带外套——防晒霜也别忘了，你可是怕晒的人。
+
+她不是变聪明了，只是终于**记得你**：记住了你怕晒、你爱草莓蛋糕、你答应过的事、你们吵过的架和和好的理由。而且和"聊天记录堆进提示词"的土办法不同——
+
+**每次回复，她只带最相关的五条记忆出门，永远轻装上阵。**
+
+## 🧠 它是怎么做到的
+
+**写入（后台悄悄进行，绝不拖慢回复）**
+
+```mermaid
+flowchart LR
+    A["💬 一轮对话"] --> B["① 事实抽取<br/>→ 事件 + 实体 + 重要度"]
+    B --> C["② 概念归纳<br/>实体 → 类目标签"]
+    B --> D["③④ 关系抽取<br/>时序 · 因果 · 语义"]
+    C --> E[("🗂 JSONL 图谱<br/>本地纯文本")]
+    D --> E
+    E --> F["日落维护<br/>衰减 · 裁剪 · 压实"]
+    style E fill:#f6e9e9,stroke:#b25d61
 ```
 
-## 为什么不是又一个「总结式记忆」
+**读取（每条消息一次，本地部分 < 100ms）**
 
-| | 常见方案（滚动总结） | memory-graph |
+```mermaid
+flowchart LR
+    A["💬 新消息"] --> B["向量召回<br/>top 10"]
+    B --> C["沿关系边<br/>走 4 跳"]
+    C --> D["加权重排<br/>0.5 相似 + 0.3 重要<br/>+ 0.2 新近"]
+    D --> E["📎 top 5 记忆<br/>注入提示词"]
+    style E fill:#f6e9e9,stroke:#b25d61
+```
+
+被召回的记忆会刷新"最近想起"时间戳——**你们常聊的事，她会记得越来越牢**；而三个月没人提起的琐事，重要度按 30 天半衰期慢慢衰减，低于阈值自动淡忘。像人一样。
+
+## ⚖️ 为什么不是又一个「总结式记忆」
+
+| | 滚动总结（常见方案） | 🐟 大鱼好记性 |
 | --- | --- | --- |
-| 存储 | 一段越滚越长的摘要文本 | 结构化图谱：事件/实体/概念 + 语义/时序/因果边 |
-| 检索 | 全文塞进上下文（体量随时间线性涨） | 向量召回 + 子图扩展 + 加权重排，**永远只取最相关的 5 条** |
-| 时间感 | 早的事被新总结覆盖丢失 | 重要度 + 新近度加权排序，被召回就刷新时间戳 |
-| 遗忘 | 没有（或不分轻重） | 30 天半衰期衰减，冷记忆自动淘汰；钉住的记忆永不衰减 |
-| 上下文成本 | 随历史增长，几万字起步 | 恒定：每次 ≤5 条、几十~几百字 |
-| 运维 | 黑盒 | JSONL 纯文本、`cat` 可读、拷目录即备份、git 友好 |
+| 记的是 | 一段越滚越长的摘要 | 结构化图谱：事件/实体/概念 + 语义/时序/因果边 |
+| 每次带多少 | 全文塞进上下文，几万字起步 | **恒定 ≤ 5 条**，几十~几百字 |
+| 时间感 | 旧事被新总结覆盖丢失 | 重要度+新近度加权，被想起就刷新 |
+| 遗忘 | 没有，或不分轻重 | 30 天半衰期，冷记忆淘汰；钉住的记忆永不衰减 |
+| 虚构污染 | 剧情对话混进真实记忆 | 角色扮演/场景回合整体跳过 |
+| 运维 | 黑盒 | JSONL 纯文本，`cat` 可读，拷目录即备份 |
 
-核心特征：
+## ✨ 特性一览
 
-- **四阶段 LLM 抽取**：事实（事件+实体+重要度）→ 概念归纳（防概念池膨胀）→ 实体关系 → 事件时序/因果（后两步可开）
-- **向量+图混合检索**：topK 召回 → 沿关系边走 4 跳 → 相似度门限 → 加权重排（0.5 相似 / 0.3 重要 / 0.2 新近，钉住 +0.3）→ top 5
-- **零依赖**：纯 Node ≥18，无原生模块、无数据库；LLM/向量走任意 OpenAI 兼容端点（含 SiliconFlow 免费档 bge-m3、本地 Ollama）
-- **每聊天独立记忆库**：私聊/群聊互不串；虚构场景回合（角色扮演/剧情）整体跳过，不污染记忆
-- **生成处捕获**：在 session 事件层抓完整回复（气泡拆分之前），按 message.id 去重，只在回合正常完成后配对入库
-- **内置自检工具**：向量模型中文塌缩/维度校验（`check_embedding.js`），上线前必跑
-- **生产实证**：在 7×24 真实 QQ 机器人上长期运行（含群聊/私聊/双号互备场景）
+- 🧩 **四阶段 LLM 抽取**：事实 → 概念 → 实体关系 → 事件时序/因果（后两步可选）
+- 🔀 **向量 + 图混合检索**：topK 召回 → 沿边走 4 跳 → 相似度门限 → 加权重排 → top 5
+- 🪶 **零依赖**：纯 Node ≥18，没有原生模块、没有数据库；LLM/向量走任意 OpenAI 兼容端点（SiliconFlow 免费档 bge-m3、本地 Ollama 都行）
+- 🐠 **每条鱼一个记忆库**：私聊/群聊互不串；虚构场景回合不污染记忆
+- 📍 **钉住机制**："这条不许忘"——重要度拉满、检索加分、永不衰减
+- 🩺 **上线自检工具**：向量模型中文塌缩/维度校验（不通过就不许上线，见踩坑手册）
+- 🖼 **可视化面板**：力导向知识图谱，双击即看（[往下看](#-看看她的记忆长什么样)）
+- 🏭 **生产实证**：在 7×24 真实 QQ 机器人上长期运行
 
-## 快速开始
+## 🚀 快速开始
 
 前置：DSH 已装好 [dsh-onebot-qq](https://github.com/mario841859784/dsh-onebot)（0.9.x）并能正常收发消息。
 
@@ -40,41 +87,36 @@
 git clone https://github.com/YeStarOne/dsh-plugin-memory-graph.git
 cd dsh-plugin-memory-graph
 
-node installer/install.mjs          # 自动找到 dsh-onebot-qq 并打补丁（带备份，可 --check 预览 / --uninstall 还原）
+node installer/install.mjs   # 自动找到 dsh-onebot-qq 打补丁（带备份；--check 预览 / --uninstall 还原）
 ```
 
-然后在 dsh-onebot-qq 配置里加 `memory:` 块（照抄 [examples/cordis-memory.yml](examples/cordis-memory.yml) 改两个端点），设置环境变量，重启 dsh：
+在 dsh-onebot-qq 配置里加 `memory:` 块（照抄 [examples/cordis-memory.yml](examples/cordis-memory.yml) 改两个端点），设好环境变量，重启 dsh：
 
 ```bash
 export MEMORY_GRAPH_CHAT_API_KEY=xxx     # 抽取用对话模型
 export MEMORY_GRAPH_EMBED_API_KEY=xxx    # 向量模型
 ```
 
-上线前自检（30 秒，能省掉 90% 的「为什么召回是空的」）：
+**上线前 30 秒自检**（能省掉 90% 的"为什么召回是空的"）：
 
 ```bash
 node <dsh-onebot-qq>/lib/memory-graph-engine/tools/check_embedding.js \
   --base-url https://api.siliconflow.cn/v1 --model BAAI/bge-m3 --dim 1024 --api-key xxx
 ```
 
-重启后随便聊两句，日志出现 `memory-hub: turn buffered ...` 即在工作；攒满 batchSize（默认 2 轮）后自动抽取入库。
+重启后随便聊两句，日志出现 `memory-hub: turn buffered ...` 即在工作；攒满一批（默认 2 轮）自动抽取入库。
 
-> 想先无网试跑：`chatBaseUrl` 和 `embedBaseUrl` 都填 `offline`，引擎走内置规则抽取 + n-gram 向量，全管线可验证（质量有限，仅验证用）。
+> 💡 想先无网试跑？`chatBaseUrl` 和 `embedBaseUrl` 都填 `offline`——引擎走内置规则抽取 + n-gram 向量，全管线可验证（质量有限，仅验证用）。
 
-## 工作原理
+## 🔍 看看她的记忆长什么样
 
-```
-写入（后台）                     读取（每条消息一次，<100ms 本地部分）
-对话轮次 → ①事实抽取 → 事件+实体  消息 → embed → 向量召回top10
-         → ②概念归纳 → 概念标签              → 沿关系边扩展4跳
-         → ③④关系抽取 → 图谱边               → 门限0.25 → 加权重排
-         → JSONL 图谱落盘                    → top5 记忆块注进提示词
-每天 maintain(): 衰减(30天半衰)/裁剪/压实
+```bash
+npm run graph -- ~/.dsh/memory-graph-data viewer    # 导出（--all 可合并全部聊天）
 ```
 
-细节见 [docs/architecture.md](docs/architecture.md)；集成原理与手动接入其他宿主见 [docs/integration.md](docs/integration.md)。
+然后双击 `viewer/index.html`：力导向图谱、时间范围筛选、节点类型勾选、搜索、节点详情与关系漫游，全都有。数据契约是公开的 JSON（[docs/visualization.md](docs/visualization.md)），Python / Go 写的机器人也能喂同一个页面。
 
-## 配置速览
+## ⚙️ 配置速览
 
 | 关键配置 | 说明 |
 | --- | --- |
@@ -82,34 +124,32 @@ node <dsh-onebot-qq>/lib/memory-graph-engine/tools/check_embedding.js \
 | `embedBaseUrl` / `embedModel` / `dim` | 向量模型与维度（**dim 填错检索静默失效**） |
 | `chatApiKeyEnv` / `embedApiKeyEnv` | key 走环境变量，不进配置文件 |
 | `chatHeaders` | 网关要求自定义头时用 |
-| `personaName` / `genderTerm` | 抽取提示词里的角色名与称呼 |
+| `personaName` / `genderTerm` | 抽取提示词里的角色名与称呼（决定她怎么"记"你） |
 | `dataDir` | 数据目录（默认 `~/.dsh/memory-graph-data`，每 chatId 一个子库） |
 
 全部字段与维护脚本（查/钉/删/重算向量）见 [docs/config.md](docs/config.md)。
 
-想**看**这套记忆长什么样？`npm run graph -- <数据目录> viewer` 导出后双击 `viewer/index.html`——力导向知识图谱、时间筛选、搜索、节点详情全都有（[docs/visualization.md](docs/visualization.md)）。
+## ⚠️ 踩坑手册（血泪浓缩，按踩到的概率排序）
 
-## 坑位手册
+1. **向量模型中文塌缩**：某些模型无关文本余弦也 0.99+，检索等于没做——实测 nomic-embed-text-v1.5 无关词对余弦 **0.9935**，bge-m3 是 **0.4977**。上线前必跑自检工具。
+2. **维度不符**：不报错、不抛异常，召回永远为空。换模型后必须改 `dim` + 重算向量。
+3. **捕获点要在回复生成处**：挂在投递层会把气泡拆分的碎片当对话抽进图谱，事件全是断句。
 
-这套系统踩过的坑全部写进了 [docs/pitfalls.md](docs/pitfalls.md)，最要紧的三条：
+完整十条见 [docs/pitfalls.md](docs/pitfalls.md)——每一条都是真实 7×24 环境里踩出来的。
 
-1. **向量模型中文塌缩**：某些模型无关文本余弦也 0.99+，检索等于没做——实测 nomic-embed-text-v1.5 就是（0.9935），bge-m3 是 0.4977
-2. **维度不符**：不报错，召回永远为空
-3. **捕获点要在回复生成处**：挂在投递层会把气泡拆分的碎片当成对话抽进图谱
+## 🗄 备份
 
-## 备份
+数据是纯文本 JSONL，直接进 git（建议私有仓）：[examples/backup-sync.sh](examples/backup-sync.sh) + cron 一行。记忆是你们俩的事，别放在只有一份的地方。
 
-数据是纯文本 JSONL，直接进 git（建议私有仓）：[examples/backup-sync.sh](examples/backup-sync.sh) + cron 一行。
-
-## 状态与路线
+## 🗺 路线图
 
 - [x] 四阶段抽取 / 混合检索 / 衰减 / 每聊天分库 / 场景隔离
 - [x] 安装器（幂等/备份/卸载）+ HTTP 侧车
-- [ ] QQ 内管理指令（"记住这条"/"忘掉这条"）
-- [x] 记忆图谱可视化面板（`viewer/index.html` 双击即用 + `npm run graph` 导出，见 [docs/visualization.md](docs/visualization.md)）
+- [x] 记忆图谱可视化面板（`viewer/index.html` 双击即用 + `npm run graph` 导出）
+- [ ] QQ 内管理指令（"记住这条" / "忘掉这条"）
 - [ ] 摘要层（跨事件的长期主题归纳）
 
-欢迎 issue / PR。如果它帮你省了心，star 一下就是全部动力。
+欢迎 issue / PR。如果大鱼的记性真的变好了，回来点个 star 就是全部动力 🐟💙
 
 ## License
 

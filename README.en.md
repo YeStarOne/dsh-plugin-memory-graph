@@ -1,6 +1,8 @@
-# dsh-plugin-memory-graph
+# dsh-plugin-memory-graph · Good Memory for Big Fish
 
-Long-term **graph memory with forgetting** for DSH (DeepSeek Harness) QQ bots: conversations are distilled into events and relations by LLM extraction; relevant memories are injected into the prompt before each reply; stale memories decay out on a forgetting curve. 中文文档见 [README.md](README.md)。
+> 🇨🇳 **中文主版本（含图谱示意图与完整文档）见 [README.md](README.md)。**
+
+Long-term **graph memory with forgetting** for DSH (DeepSeek Harness) QQ bots: conversations are distilled into events and relations by LLM extraction; relevant memories are injected into the prompt before each reply; stale memories decay out on a forgetting curve.
 
 ```text
 User: how about hiking this weekend?
