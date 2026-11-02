@@ -1,0 +1,27 @@
+{
+  "name": "memory-graph-engine",
+  "version": "1.0.0",
+  "description": "memory-graph 长期记忆引擎：对话 → 知识图谱 → 向量召回。零依赖，纯 Node 实现",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "test": "node test/run.js",
+    "demo": "node demo/01_offline.js",
+    "demo:openai": "node demo/02_openai_compatible.js"
+  },
+  "keywords": [
+    "memory",
+    "long-term-memory",
+    "knowledge-graph",
+    "vector-search",
+    "rag",
+    "llm",
+    "agent",
+    "chatbot"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {},
+  "license": "MIT"
+}

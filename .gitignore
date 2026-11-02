@@ -1,0 +1,6 @@
+node_modules/
+*.tgz
+*.log
+.demo-store/
+.tmp/
+.DS_Store

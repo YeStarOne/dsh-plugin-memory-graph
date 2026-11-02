@@ -1,0 +1,19 @@
+# 在 dsh-onebot-qq 的配置（cordis.patch.yml 或 dsh 设置页）里加这一段即可开启。
+# 端点只是示例：任何 OpenAI 兼容端点都行；两个端点都填 offline 可无网试跑。
+memory:
+  enabled: true
+  # —— 模型端点（必填之一）——
+  chatBaseUrl: https://api.siliconflow.cn/v1     # 抽取用对话模型端点
+  chatModel: Qwen/Qwen2.5-7B-Instruct            # 抽取用对话模型名
+  chatApiKeyEnv: MEMORY_GRAPH_CHAT_API_KEY       # key 从环境变量读，别写进配置
+  # chatHeaders: {}                              # 某些网关要求自定义会话头时填
+  embedBaseUrl: https://api.siliconflow.cn/v1    # 向量端点
+  embedModel: BAAI/bge-m3                        # 上线前先跑 check_embedding.js 自检
+  embedApiKeyEnv: MEMORY_GRAPH_EMBED_API_KEY
+  dim: 1024                                      # 必须与向量模型真实维度一致
+  # —— 可选 ——
+  # dataDir: /home/me/.dsh/memory-graph-data     # 默认 ~/.dsh/memory-graph-data
+  # personaName: 助手                             # 抽取提示词里的角色名
+  # genderTerm: 你                                # 角色对用户的称呼
+  # batchSize: 2                                 # 攒几轮对话做一次抽取
+  # flushIntervalMs: 90000                       # 缓冲定时落库间隔

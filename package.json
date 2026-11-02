@@ -1,0 +1,54 @@
+{
+  "name": "dsh-plugin-memory-graph",
+  "version": "1.0.0",
+  "description": "DSH (DeepSeek Harness) QQ 机器人长期记忆插件：对话→知识图谱→向量召回，回合前注入相关记忆，回合后后台抽取入库。Zero-dep graph + vector long-term memory for dsh-onebot-qq.",
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "dsh-onebot-qq",
+    "onebot",
+    "qq-bot",
+    "memory",
+    "long-term-memory",
+    "knowledge-graph",
+    "vector-search",
+    "rag",
+    "llm",
+    "agent"
+  ],
+  "type": "module",
+  "main": "lib/memory-hub.js",
+  "bin": {
+    "dsh-memory-graph": "bin/cli.mjs"
+  },
+  "files": [
+    "lib",
+    "engine",
+    "installer",
+    "bin",
+    "docs",
+    "examples",
+    "README.md",
+    "README.en.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "install:integration": "node installer/install.mjs",
+    "check": "node installer/install.mjs --check",
+    "uninstall": "node installer/install.mjs --uninstall",
+    "test": "node engine/test/run.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YeStarOne/dsh-plugin-memory-graph.git"
+  },
+  "homepage": "https://github.com/YeStarOne/dsh-plugin-memory-graph#readme",
+  "bugs": {
+    "url": "https://github.com/YeStarOne/dsh-plugin-memory-graph/issues"
+  }
+}
