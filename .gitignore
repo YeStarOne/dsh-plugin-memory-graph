@@ -4,3 +4,6 @@ node_modules/
 .demo-store/
 .tmp/
 .DS_Store
+viewer/graph-data.js
+viewer/graph-data.json
+/_local/

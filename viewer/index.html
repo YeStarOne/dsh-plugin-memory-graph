@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>记忆图谱 · memory-graph viewer</title>
+<script src="graph-data.js"></script>
+<style>
+  :root {
+    --bg: #f7f3f1; --panel: #ffffff; --border: #eadfdb; --ink: #3d3436; --ink-dim: #9a8d90;
+    --accent: #b25d61; --accent-soft: #f6e9e9; --gold: #c99a3f; --blue: #4a7dbd;
+    --entity: #b25d61; --event-line: #b25d61; --concept: #e5cf92; --concept-line: #b58b2a;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    font-size: 14px; display: flex; flex-direction: column;
+  }
+  header { padding: 18px 24px 10px; }
+  .title-row { display: flex; align-items: center; gap: 12px; }
+  .logo {
+    width: 38px; height: 38px; border-radius: 10px; background: var(--accent);
+    color: #fff; display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 700; flex: none;
+  }
+  h1 { font-size: 22px; font-weight: 700; }
+  .subtitle { color: var(--ink-dim); font-size: 12.5px; margin: 8px 0 14px; line-height: 1.6; }
+  .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 16px;
+  }
+  .card .k { color: var(--ink-dim); font-size: 12px; margin-bottom: 6px; }
+  .card .v { font-size: 22px; font-weight: 700; }
+  .card .v small { font-size: 12px; font-weight: 400; color: var(--ink-dim); }
+  main { flex: 1; display: grid; grid-template-columns: 230px 1fr 300px; gap: 12px; padding: 0 24px 20px; min-height: 0; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 14px; overflow: auto; min-height: 0;
+  }
+  .panel h2 {
+    font-size: 12px; letter-spacing: .08em; color: var(--ink-dim);
+    font-weight: 700; margin-bottom: 12px;
+  }
+  .sect { margin-bottom: 18px; }
+  .sect .label { font-size: 12.5px; font-weight: 600; margin-bottom: 8px; }
+  .seg { display: flex; gap: 6px; flex-wrap: wrap; }
+  .seg button {
+    border: 1px solid var(--border); background: #fff; border-radius: 999px;
+    padding: 5px 12px; font-size: 12.5px; cursor: pointer; color: var(--ink);
+  }
+  .seg button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  select {
+    width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px;
+    font-size: 12.5px; background: #fff; color: var(--ink);
+  }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 4px 0; cursor: pointer; }
+  .check input { accent-color: var(--accent); width: 15px; height: 15px; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; flex: none; }
+  .dot.entity { background: var(--entity); }
+  .dot.event { background: #fff; border: 2px solid var(--event-line); width: 9px; height: 9px; }
+  .dot.concept { background: var(--concept); border: 1px solid var(--concept-line); transform: rotate(45deg); width: 9px; height: 9px; border-radius: 2px; }
+  .legend { font-size: 12.5px; color: var(--ink-dim); display: flex; flex-direction: column; gap: 6px; }
+  .legend .row { display: flex; align-items: center; gap: 8px; }
+  #stage { position: relative; padding: 0; overflow: hidden; }
+  #svg { width: 100%; height: 100%; display: block; cursor: grab; background:
+    radial-gradient(circle at 30% 20%, #fdfbfa 0%, #f7f3f1 70%); }
+  #svg.dragging { cursor: grabbing; }
+  .zoomctl {
+    position: absolute; top: 12px; right: 12px; display: flex; align-items: center; gap: 6px;
+    background: #fff; border: 1px solid var(--border); border-radius: 999px; padding: 4px;
+    box-shadow: 0 2px 8px rgba(60,40,40,.08);
+  }
+  .zoomctl button { border: 0; background: transparent; font-size: 16px; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; color: var(--ink); }
+  .zoomctl button:hover { background: var(--accent-soft); }
+  .zoomctl .ratio { font-size: 11px; color: var(--ink-dim); min-width: 38px; text-align: center; }
+  .banner {
+    position: absolute; left: 12px; top: 12px; background: var(--accent-soft);
+    border: 1px solid #eed7d7; color: #8c5a5c; font-size: 12.5px;
+    border-radius: 8px; padding: 6px 12px; max-width: 70%;
+  }
+  .searchrow { display: flex; gap: 6px; margin-bottom: 10px; }
+  .searchrow input {
+    flex: 1; border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font-size: 13px;
+  }
+  .searchrow button {
+    border: 1px solid var(--border); background: #fff; border-radius: 8px; padding: 6px 12px;
+    cursor: pointer; font-size: 13px;
+  }
+  .searchrow button:hover { background: var(--accent-soft); }
+  #detail .empty { color: var(--ink-dim); font-size: 12.5px; line-height: 1.7; }
+  .badge {
+    display: inline-block; font-size: 11px; border-radius: 6px; padding: 2px 8px;
+    background: var(--accent-soft); color: var(--accent); font-weight: 600; margin-bottom: 10px;
+  }
+  .badge.entity { background: #f6e4e4; color: #a14e52; }
+  .badge.event { background: #efe7e0; color: #8c6a4f; }
+  .badge.concept { background: #f4ecd4; color: #8f6f1f; }
+  #detail .content { font-size: 14.5px; font-weight: 600; line-height: 1.55; margin-bottom: 12px; }
+  #detail .kv { font-size: 12px; color: var(--ink-dim); line-height: 1.9; word-break: break-all; }
+  #detail .kv b { color: var(--ink); font-weight: 600; }
+  .conn-title { font-size: 12px; letter-spacing: .06em; color: var(--ink-dim); font-weight: 700; margin: 14px 0 8px; }
+  .conn { list-style: none; padding: 0; }
+  .conn li {
+    font-size: 12.5px; padding: 6px 8px; border-radius: 8px; cursor: pointer;
+    display: flex; gap: 6px; align-items: baseline; line-height: 1.5;
+  }
+  .conn li:hover { background: var(--accent-soft); }
+  .conn .rel { color: var(--ink-dim); font-size: 11px; flex: none; }
+  .conn .dir { color: var(--accent); flex: none; font-size: 11px; }
+  #dropzone {
+    position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+    background: #fff; z-index: 5; text-align: center;
+  }
+  #dropzone.show { display: flex; }
+  #dropzone .box { border: 2px dashed var(--border); border-radius: 16px; padding: 40px 60px; color: var(--ink-dim); }
+  #dropzone .box b { color: var(--accent); cursor: pointer; }
+  #dropzone input { display: none; }
+  .toolbar { display: flex; gap: 8px; }
+  .toolbar button {
+    flex: 1; border: 1px solid var(--border); background: #fff; border-radius: 8px;
+    padding: 6px 0; font-size: 12.5px; cursor: pointer;
+  }
+  .toolbar button:hover { background: var(--accent-soft); }
+  @media (max-width: 1100px) {
+    main { grid-template-columns: 200px 1fr 260px; }
+    .cards { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="title-row">
+    <div class="logo">忆</div>
+    <h1>记忆图谱</h1>
+  </div>
+  <div class="subtitle">
+    把引擎库里的实体、事件与概念节点整理成知识图谱。数据来自 tools/export_graph.js 的导出文件；
+    双击本页即可查看，也可以把 graph-data.json / graph-data.js 直接拖进来。
+  </div>
+  <div class="cards">
+    <div class="card"><div class="k">总记忆</div><div class="v" id="stTotal">–</div></div>
+    <div class="card"><div class="k">当前渲染</div><div class="v" id="stShown">–</div></div>
+    <div class="card"><div class="k">关系边</div><div class="v" id="stEdges">–</div></div>
+    <div class="card"><div class="k">数据源</div><div class="v" id="stSource" style="font-size:14px">–</div></div>
+  </div>
+</header>
+
+<main>
+  <aside class="panel">
+    <h2>FILTER</h2>
+    <div class="sect">
+      <div class="label">时间范围</div>
+      <div class="seg" id="timeSeg">
+        <button data-t="30" class="on">近1月</button>
+        <button data-t="90">近3月</button>
+        <button data-t="0">全部</button>
+      </div>
+      <div style="height:8px"></div>
+      <select id="monthSel"><option value="">按月显示…</option></select>
+    </div>
+    <div class="sect">
+      <div class="label">节点类型</div>
+      <label class="check"><input type="checkbox" id="tEntity" checked><span class="dot entity"></span>实体</label>
+      <label class="check"><input type="checkbox" id="tEvent" checked><span class="dot event"></span>事件</label>
+      <label class="check"><input type="checkbox" id="tConcept" checked><span class="dot concept"></span>概念</label>
+    </div>
+    <div class="sect">
+      <div class="label">筛选</div>
+      <label class="check"><input type="checkbox" id="impOnly">仅显示重要 (importance ≥ 0.7)</label>
+      <label class="check"><input type="checkbox" id="customOnly">只看钉住的记忆</label>
+    </div>
+    <div class="sect">
+      <div class="label">LEGEND</div>
+      <div class="legend">
+        <div class="row"><span class="dot entity"></span>实体节点</div>
+        <div class="row"><span class="dot event"></span>事件节点</div>
+        <div class="row"><span class="dot concept"></span>概念节点</div>
+        <div class="row"><span style="width:11px;height:11px;border-radius:50%;border:2.5px solid var(--gold);flex:none"></span>钉住的记忆</div>
+      </div>
+    </div>
+    <div class="sect">
+      <div class="toolbar">
+        <button id="reheat">重新布局</button>
+        <button id="fitBtn">适应视图</button>
+      </div>
+    </div>
+  </aside>
+
+  <section class="panel" id="stage">
+    <svg id="svg"><g id="viewport"><g id="edgeLayer"></g><g id="nodeLayer"></g><g id="labelLayer"></g></g></svg>
+    <div class="zoomctl">
+      <button id="zoomIn" title="放大">＋</button>
+      <button id="zoomOut" title="缩小">－</button>
+      <span class="ratio" id="ratio">1:1</span>
+    </div>
+    <div class="banner" id="banner" style="display:none"></div>
+    <div id="dropzone">
+      <div class="box">
+        <div style="font-size:15px;margin-bottom:8px">还没有加载数据</div>
+        <div>把 <b>graph-data.json</b> 拖进来，或 <b id="pickBtn">点击选择文件</b></div>
+        <div style="margin-top:8px;font-size:12px">（也可以把本页放到 graph-data.js 同目录后刷新）</div>
+        <input type="file" id="fileInput" accept=".json,.js">
+      </div>
+    </div>
+  </section>
+
+  <aside class="panel" id="detailPanel">
+    <h2>NODE DETAIL</h2>
+    <div class="searchrow">
+      <input id="searchBox" placeholder="搜索节点内容…">
+      <button id="searchBtn">搜索</button>
+    </div>
+    <div id="detail"><div class="empty">点击图中节点查看详情；搜索可高亮并跳转。</div></div>
+  </aside>
+</main>
+
+<script>
+'use strict';
+/* ================= 数据加载 ================= */
+let DATA = null;
+const dropzone = document.getElementById('dropzone');
+
+function normalizeData(raw) {
+  if (!raw || !Array.isArray(raw.nodes)) throw new Error('数据格式不对：缺少 nodes 数组');
+  const nodes = raw.nodes.map(n => ({
+    id: String(n.id), nodeType: n.nodeType || 'event', content: String(n.content ?? ''),
+    importance: Number(n.importance) || 0, createdAt: Number(n.createdAt) || 0,
+    eventTime: n.eventTime || '', custom: !!n.custom
+  }));
+  const ids = new Set(nodes.map(n => n.id));
+  const edges = (Array.isArray(raw.edges) ? raw.edges : [])
+    .filter(e => ids.has(String(e.sourceId)) && ids.has(String(e.targetId)))
+    .map(e => ({ id: String(e.id ?? ''), sourceId: String(e.sourceId), targetId: String(e.targetId), relation: String(e.relation || '') }));
+  return { meta: raw.meta || {}, nodes, edges };
+}
+
+function useData(raw, from) {
+  try {
+    DATA = normalizeData(raw);
+    dropzone.classList.remove('show');
+    init();
+    console.log('memory-graph viewer: loaded', DATA.meta, 'from', from);
+  } catch (e) {
+    dropzone.classList.add('show');
+    alert('数据加载失败：' + e.message);
+  }
+}
+
+(function boot() {
+  if (window.MEMORY_GRAPH_DATA) { useData(window.MEMORY_GRAPH_DATA, 'graph-data.js'); return; }
+  fetch('graph-data.json', { cache: 'no-store' })
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(json => useData(json, 'graph-data.json'))
+    .catch(() => dropzone.classList.add('show'));
+})();
+
+function handleFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const text = String(reader.result);
+    try {
+      if (file.name.endsWith('.json')) return useData(JSON.parse(text), 'file:' + file.name);
+      const m = /=\s*(\{[\s\S]*\})\s*;?\s*$/.exec(text);
+      if (!m) throw new Error('不是合法的 graph-data.js / .json');
+      useData(JSON.parse(m[1]), 'file:' + file.name);
+    } catch (e) { alert('加载失败：' + e.message); }
+  };
+  reader.readAsText(file, 'utf-8');
+}
+document.getElementById('pickBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', e => e.target.files[0] && handleFile(e.target.files[0]));
+window.addEventListener('dragover', e => e.preventDefault());
+window.addEventListener('drop', e => { e.preventDefault(); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+
+/* ================= 状态 ================= */
+const state = {
+  days: 30, month: '', types: { entity: true, event: true, concept: true },
+  impOnly: false, customOnly: false,
+  selected: null, searchHits: new Set(), query: ''
+};
+const byId = new Map();
+let visNodes = [], visEdges = [], nodeById = new Map();
+const deg = new Map();
+
+/* ================= 工具 ================= */
+const svg = document.getElementById('svg');
+const viewport = document.getElementById('viewport');
+const edgeLayer = document.getElementById('edgeLayer');
+const nodeLayer = document.getElementById('nodeLayer');
+const labelLayer = document.getElementById('labelLayer');
+const NS = 'http://www.w3.org/2000/svg';
+const el = (tag, attrs) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
+const fmtTime = ms => { if (!ms) return '–'; const d = new Date(ms); const p = x => String(x).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+
+let view = { x: 0, y: 0, k: 1 };
+function applyView() {
+  viewport.setAttribute('transform', `translate(${view.x},${view.y}) scale(${view.k})`);
+  document.getElementById('ratio').textContent = Math.round(view.k * 100) + '%';
+}
+function svgPoint(clientX, clientY) {
+  const r = svg.getBoundingClientRect();
+  return { x: (clientX - r.left - view.x) / view.k, y: (clientY - r.top - view.y) / view.k };
+}
+function fitView() {
+  if (!visNodes.length) return;
+  const xs = visNodes.map(n => n.x), ys = visNodes.map(n => n.y);
+  const minX = Math.min(...xs) - 60, maxX = Math.max(...xs) + 60;
+  const minY = Math.min(...ys) - 60, maxY = Math.max(...ys) + 60;
+  const r = svg.getBoundingClientRect();
+  const k = Math.min(2.2, Math.min(r.width / (maxX - minX), r.height / (maxY - minY)));
+  view.k = Math.max(0.12, k);
+  view.x = (r.width - (minX + maxX) * view.k) / 2;
+  view.y = (r.height - (minY + maxY) * view.k) / 2;
+  applyView();
+}
+
+/* ================= 过滤 ================= */
+function visible() {
+  const now = Date.now();
+  let cutoff = 0;
+  if (state.days > 0) cutoff = now - state.days * 86400000;
+  let mStart = -Infinity, mEnd = Infinity;
+  if (state.month) { const [y, m] = state.month.split('-').map(Number);
+    mStart = new Date(y, m - 1, 1).getTime(); mEnd = new Date(y, m, 1).getTime(); }
+  const kept = [];
+  for (const n of DATA.nodes) {
+    if (!state.types[n.nodeType]) continue;
+    const t = n.createdAt || 0;
+    if (t < cutoff) continue;
+    if (t < mStart || t >= mEnd) continue;
+    if (state.impOnly && n.importance < 0.7) continue;
+    if (state.customOnly && !n.custom) continue;
+    kept.push(n);
+  }
+  const keptIds = new Set(kept.map(n => n.id));
+  const edges = DATA.edges.filter(e => keptIds.has(e.sourceId) && keptIds.has(e.targetId));
+  return { nodes: kept, edges };
+}
+
+/* ================= 力导向 ================= */
+let simNodes = [], simEdges = [], simAlpha = 0, simRunning = false;
+function initPositions() {
+  let i = 0;
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  for (const n of simNodes) {
+    if (n.x !== undefined) continue;
+    const r = 14 * Math.sqrt(i + 3), a = i * golden;
+    const off = n.nodeType === 'entity' ? -80 : n.nodeType === 'concept' ? 80 : 0;
+    n.x = Math.cos(a) * r + off; n.y = Math.sin(a) * r;
+    n.vx = 0; n.vy = 0; i++;
+  }
+}
+function reheat(alpha) { simAlpha = alpha; if (!simRunning) { simRunning = true; requestAnimationFrame(tick); } }
+function tick() {
+  step();
+  draw();
+  if (simAlpha > 0.008) requestAnimationFrame(tick); else simRunning = false;
+}
+function step() {
+  const N = simNodes.length;
+  const rep = 2600 / Math.max(0.6, Math.sqrt(N) * 0.55);
+  for (let i = 0; i < N; i++) {
+    const a = simNodes[i];
+    for (let j = i + 1; j < N; j++) {
+      const b = simNodes[j];
+      let dx = a.x - b.x, dy = a.y - b.y;
+      let d2 = dx * dx + dy * dy;
+      if (d2 < 1) { dx = (Math.random() - .5); dy = (Math.random() - .5); d2 = 1; }
+      if (d2 > 90000) continue;
+      const f = rep / d2, d = Math.sqrt(d2);
+      const fx = dx / d * f, fy = dy / d * f;
+      a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
+    }
+  }
+  for (const e of simEdges) {
+    const a = nodeById.get(e.sourceId), b = nodeById.get(e.targetId);
+    if (!a || !b) continue;
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const d = Math.max(1, Math.hypot(dx, dy));
+    const rest = 88;
+    const f = (d - rest) * 0.012;
+    const fx = dx / d * f, fy = dy / d * f;
+    a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
+  }
+  for (const n of simNodes) {
+    n.vx += -n.x * 0.0035; n.vy += -n.y * 0.0035;
+    if (n.fx !== undefined) { n.x = n.fx; n.y = n.fy; n.vx = 0; n.vy = 0; continue; }
+    n.vx *= 0.86; n.vy *= 0.86;
+    n.x += Math.max(-14, Math.min(14, n.vx * simAlpha * 22));
+    n.y += Math.max(-14, Math.min(14, n.vy * simAlpha * 22));
+  }
+  simAlpha *= 0.985;
+}
+
+/* ================= 渲染 ================= */
+const edgeEls = new Map(), nodeEls = new Map(), labelEls = new Map();
+function draw() {
+  const showLabels = simNodes.length <= 350 || view.k > 1.1;
+  for (const e of simEdges) {
+    let el_ = edgeEls.get(e);
+    if (!el_) {
+      el_ = el('line', { stroke: '#dcc9ca', 'stroke-width': 1 });
+      el_.addEventListener('mouseenter', () => { el_.setAttribute('stroke', '#b25d61'); el_.setAttribute('stroke-width', 2); });
+      el_.addEventListener('mouseleave', () => { if (!e._hl) { el_.setAttribute('stroke', '#dcc9ca'); el_.setAttribute('stroke-width', 1); } });
+      const t = el('title', {}); t.textContent = ''; el_.appendChild(t);
+      el_._title = t; e._el = el_; edgeEls.set(e, el_);
+      edgeLayer.appendChild(el_);
+    }
+    const a = nodeById.get(e.sourceId), b = nodeById.get(e.targetId);
+    el_.setAttribute('x1', a.x); el_.setAttribute('y1', a.y);
+    el_.setAttribute('x2', b.x); el_.setAttribute('y2', b.y);
+    el_._title.textContent = e.relation + (e.relation ? '  ' : '');
+  }
+  for (const n of simNodes) {
+    let g = nodeEls.get(n);
+    if (!g) {
+      g = el('g', {});
+      const shape = shapeFor(n);
+      g.appendChild(shape);
+      const hit = el('circle', { r: 13, fill: 'transparent' });
+      g.appendChild(hit);
+      g._shape = shape;
+      g.addEventListener('pointerdown', ev => { ev.stopPropagation(); startDragNode(n, ev); });
+      g.addEventListener('mouseenter', () => highlight(n, true));
+      g.addEventListener('mouseleave', () => highlight(n, false));
+      g.addEventListener('click', ev => { ev.stopPropagation(); selectNode(n.id); });
+      nodeEls.set(n, g); nodeLayer.appendChild(g);
+    }
+    g.setAttribute('transform', `translate(${n.x},${n.y})`);
+    let lb = labelEls.get(n);
+    if (!lb) {
+      lb = el('text', { 'text-anchor': 'middle', 'font-size': 9.5, fill: '#6d5f63', 'pointer-events': 'none',
+        style: 'paint-order:stroke;stroke:#f7f3f1;stroke-width:3px;stroke-linejoin:round' });
+      lb.textContent = truncate(n.content, 12);
+      labelEls.set(n, lb); labelLayer.appendChild(lb);
+    }
+    lb.setAttribute('x', n.x);
+    lb.setAttribute('y', n.y + (n.nodeType === 'event' ? 18 : 21));
+    const wantLabel = showLabels || n === selectedNode() || state.searchHits.has(n.id);
+    lb.style.display = wantLabel ? '' : 'none';
+  }
+}
+function truncate(s, n) { s = String(s); return s.length > n ? s.slice(0, n) + '…' : s; }
+function shapeFor(n) {
+  const degv = deg.get(n.id) || 0;
+  if (n.nodeType === 'entity') {
+    const r = 5.5 + Math.min(7, degv * 0.7);
+    const c = el('circle', { r, fill: '#b25d61' });
+    if (n.custom) c.setAttribute('stroke', '#c99a3f'), c.setAttribute('stroke-width', 2.5);
+    return c;
+  }
+  if (n.nodeType === 'concept') {
+    const s = 6 + Math.min(5, degv * 0.5);
+    const d = el('rect', { x: -s, y: -s, width: 2 * s, height: 2 * s, rx: 2,
+      fill: '#e5cf92', stroke: '#b58b2a', 'stroke-width': 1, transform: 'rotate(45)' });
+    if (n.custom) d.setAttribute('stroke', '#c99a3f'), d.setAttribute('stroke-width', 2.5);
+    return d;
+  }
+  const w = 11 + Math.min(9, degv), h = 7;
+  const r = el('rect', { x: -w, y: -h, width: 2 * w, height: 2 * h, rx: 3.5,
+    fill: '#ffffff', stroke: '#b25d61', 'stroke-width': 1.4 });
+  if (n.custom) r.setAttribute('stroke', '#c99a3f'), r.setAttribute('stroke-width', 2.5);
+  return r;
+}
+let hovered = null;
+function highlight(n, on) {
+  hovered = on ? n : (hovered === n ? null : hovered);
+  for (const e of simEdges) {
+    const hit = nodeById.get(e.sourceId) === n || nodeById.get(e.targetId) === n;
+    if (e._el) {
+      e._hl = hit && on;
+      e._el.setAttribute('stroke', hit && on ? '#b25d61' : '#dcc9ca');
+      e._el.setAttribute('stroke-width', hit && on ? 1.8 : 1);
+    }
+  }
+}
+
+/* ================= 选中与详情 ================= */
+function selectedNode() { return state.selected ? nodeById.get(state.selected) : null; }
+function selectNode(id) {
+  state.selected = id;
+  const n = nodeById.get(id);
+  const box = document.getElementById('detail');
+  if (!n) { box.innerHTML = '<div class="empty">点击图中节点查看详情。</div>'; return; }
+  const typeCN = { entity: '实体', event: '事件', concept: '概念' }[n.nodeType] || n.nodeType;
+  const conns = [];
+  for (const e of DATA.edges) {
+    if (e.sourceId === id) conns.push({ other: e.targetId, rel: e.relation, dir: '→' });
+    else if (e.targetId === id) conns.push({ other: e.sourceId, rel: e.relation, dir: '←' });
+  }
+  box.innerHTML =
+    `<span class="badge ${n.nodeType}">${typeCN}${n.custom ? ' · 已钉住' : ''}</span>` +
+    `<div class="content"></div>` +
+    `<div class="kv">id · <b>${n.id.slice(0, 13)}…</b><br>` +
+    `importance · <b>${n.importance.toFixed(3)}</b><br>` +
+    `createdAt · <b>${fmtTime(n.createdAt)}</b><br>` +
+    (n.eventTime ? `eventTime · <b>${n.eventTime}</b><br>` : '') +
+    `度 · <b>${conns.length}</b></div>` +
+    `<div class="conn-title">CONNECTIONS (${conns.length})</div>` +
+    `<ul class="conn">` +
+    (conns.slice(0, 60).map(c => {
+      const o = byId.get(c.other);
+      return `<li data-id="${c.other}"><span class="dir">${c.dir}</span><span class="rel">[${c.rel || '—'}]</span><span>${truncate(o ? o.content : c.other, 18)}</span></li>`;
+    }).join('') || '<li style="color:var(--ink-dim);cursor:default">无连接</li>') +
+    `</ul>`;
+  box.querySelector('.content').textContent = n.content;
+  box.querySelectorAll('.conn li[data-id]').forEach(li => {
+    li.addEventListener('click', () => { selectNode(li.dataset.id); centerOn(li.dataset.id); });
+  });
+  highlightNeighbors(id, true);
+}
+function highlightNeighbors(id, on) {
+  for (const e of simEdges) {
+    const hit = e.sourceId === id || e.targetId === id;
+    if (e._el) {
+      e._hl = hit && on;
+      e._el.setAttribute('stroke', hit && on ? '#4a7dbd' : '#dcc9ca');
+      e._el.setAttribute('stroke-width', hit && on ? 1.8 : 1);
+    }
+  }
+}
+function centerOn(id) {
+  const n = nodeById.get(id);
+  if (!n) return;
+  const r = svg.getBoundingClientRect();
+  view.x = r.width / 2 - n.x * view.k;
+  view.y = r.height / 2 - n.y * view.k;
+  applyView();
+}
+
+/* ================= 搜索 ================= */
+function doSearch() {
+  const q = document.getElementById('searchBox').value.trim().toLowerCase();
+  state.query = q;
+  state.searchHits = new Set();
+  if (!q) { draw(); return; }
+  for (const n of DATA.nodes) if (n.content.toLowerCase().includes(q)) state.searchHits.add(n.id);
+  if (state.searchHits.size) {
+    const first = [...state.searchHits].find(id => nodeById.has(id));
+    if (first) { selectNode(first); centerOn(first); }
+  } else {
+    document.getElementById('detail').innerHTML = '<div class="empty">没有匹配的节点。</div>';
+  }
+  draw();
+}
+document.getElementById('searchBtn').addEventListener('click', doSearch);
+document.getElementById('searchBox').addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); });
+
+/* ================= 平移缩放与拖拽 ================= */
+let panning = false, panStart = null;
+svg.addEventListener('pointerdown', ev => {
+  panning = true; panStart = { x: ev.clientX, y: ev.clientY, vx: view.x, vy: view.y };
+  svg.classList.add('dragging'); svg.setPointerCapture(ev.pointerId);
+  selectNode(null);
+});
+svg.addEventListener('pointermove', ev => {
+  if (panning && panStart) {
+    view.x = panStart.vx + (ev.clientX - panStart.x);
+    view.y = panStart.vy + (ev.clientY - panStart.y);
+    applyView();
+  }
+});
+svg.addEventListener('pointerup', () => { panning = false; panStart = null; svg.classList.remove('dragging'); });
+svg.addEventListener('wheel', ev => {
+  ev.preventDefault();
+  const r = svg.getBoundingClientRect();
+  const mx = ev.clientX - r.left, my = ev.clientY - r.top;
+  const k2 = Math.max(0.08, Math.min(4, view.k * (ev.deltaY < 0 ? 1.15 : 1 / 1.15)));
+  view.x = mx - (mx - view.x) * (k2 / view.k);
+  view.y = my - (my - view.y) * (k2 / view.k);
+  view.k = k2; applyView(); draw();
+}, { passive: false });
+document.getElementById('zoomIn').addEventListener('click', () => zoomStep(1.25));
+document.getElementById('zoomOut').addEventListener('click', () => zoomStep(1 / 1.25));
+function zoomStep(f) {
+  const r = svg.getBoundingClientRect();
+  const mx = r.width / 2, my = r.height / 2;
+  const k2 = Math.max(0.08, Math.min(4, view.k * f));
+  view.x = mx - (mx - view.x) * (k2 / view.k);
+  view.y = my - (my - view.y) * (k2 / view.k);
+  view.k = k2; applyView(); draw();
+}
+function startDragNode(n, ev) {
+  const p = svgPoint(ev.clientX, ev.clientY);
+  n.fx = p.x; n.fy = p.y;
+  reheat(0.5);
+  const move = e2 => { const q = svgPoint(e2.clientX, e2.clientY); n.fx = q.x; n.fy = q.y; reheat(0.3); };
+  const up = () => {
+    n.fx = undefined; n.fy = undefined;
+    window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
+  };
+  window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+}
+
+/* ================= 初始化与筛选联动 ================= */
+function init() {
+  byId.clear();
+  for (const n of DATA.nodes) byId.set(n.id, n);
+  // 月份下拉
+  const months = [...new Set(DATA.nodes.map(n => { const d = new Date(n.createdAt || 0);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }))].sort().reverse();
+  const sel = document.getElementById('monthSel');
+  sel.innerHTML = '<option value="">按月显示…</option>' + months.map(m => `<option value="${m}">${m}</option>`).join('');
+  sel.value = state.month = '';
+  state.days = 30;
+  document.querySelectorAll('#timeSeg button').forEach(b => b.classList.toggle('on', b.dataset.t === '30'));
+  rebuild(true);
+}
+
+function rebuild(fresh) {
+  if (!DATA) return;
+  const v = visible();
+  deg.clear();
+  for (const e of v.edges) {
+    deg.set(e.sourceId, (deg.get(e.sourceId) || 0) + 1);
+    deg.set(e.targetId, (deg.get(e.targetId) || 0) + 1);
+  }
+  const oldPos = new Map(simNodes.map(n => [n.id, n]));
+  simNodes = v.nodes;
+  simEdges = v.edges;
+  nodeById = new Map(simNodes.map(n => [n.id, n]));
+  if (fresh) { for (const n of simNodes) { n.x = undefined; n.y = undefined; } }
+  else for (const n of simNodes) { const o = oldPos.get(n.id); if (o) { n.x = o.x; n.y = o.y; } }
+  initPositions();
+  // 清掉不再可见的元素
+  for (const [n, g] of nodeEls) if (!nodeById.has(n.id)) { g.remove(); nodeEls.delete(n); labelEls.get(n)?.remove(); labelEls.delete(n); }
+  for (const [e, g] of edgeEls) if (!simEdges.includes(e)) { g.remove(); edgeEls.delete(e); }
+  document.getElementById('stTotal').textContent = DATA.nodes.length;
+  document.getElementById('stShown').textContent = simNodes.length;
+  document.getElementById('stEdges').textContent = simEdges.length;
+  const meta = DATA.meta || {};
+  document.getElementById('stSource').innerHTML =
+    `${(meta.source || '–')}<br><small>${meta.slot || ''} · ${new Date(meta.exportedAt || Date.now()).toLocaleString()}</small>`;
+  const range = state.month ? state.month : state.days > 0 ? `近${Math.round(state.days / 30)}个月` : '全部时间';
+  const banner = document.getElementById('banner');
+  banner.style.display = '';
+  banner.textContent = `当前时间范围：${range}，显示 ${simNodes.length} / ${DATA.nodes.length} 条记忆。`;
+  if (state.selected && !nodeById.has(state.selected)) { state.selected = null; document.getElementById('detail').innerHTML = '<div class="empty">当前筛选下该节点不可见。</div>'; }
+  fitView();
+  reheat(0.9);
+}
+
+document.querySelectorAll('#timeSeg button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('#timeSeg button').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  state.days = Number(b.dataset.t); state.month = '';
+  document.getElementById('monthSel').value = '';
+  rebuild(false);
+}));
+document.getElementById('monthSel').addEventListener('change', e => { state.month = e.target.value; rebuild(false); });
+for (const [id, key] of [['tEntity', 'entity'], ['tEvent', 'event'], ['tConcept', 'concept']]) {
+  document.getElementById(id).addEventListener('change', e => { state.types[key] = e.target.checked; rebuild(false); });
+}
+document.getElementById('impOnly').addEventListener('change', e => { state.impOnly = e.target.checked; rebuild(false); });
+document.getElementById('customOnly').addEventListener('change', e => { state.customOnly = e.target.checked; rebuild(false); });
+document.getElementById('reheat').addEventListener('click', () => { for (const n of simNodes) { n.x = undefined; n.y = undefined; } rebuild(true); });
+document.getElementById('fitBtn').addEventListener('click', fitView);
+window.addEventListener('resize', fitView);
+</script>
+</body>
+</html>

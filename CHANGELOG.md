@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0 (2026-11-03)
+
+- 新增记忆图谱可视化：`viewer/index.html` 单文件零依赖面板（三类节点 / 力导向 /
+  时间筛选 / 搜索 / 节点详情 / 缩放拖拽），双击即用
+- 新增导出器 `engine/tools/export_graph.js`：单库或 `--all` 合并多 chat 库 →
+  `graph-data.js` / `graph-data.json`，数据契约公开，任何语言都能喂
+- `npm run graph` 快捷脚本
+
 ## 1.0.0 (2026-11-03)
 
 首个公开版本。

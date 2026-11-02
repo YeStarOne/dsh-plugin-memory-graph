@@ -65,7 +65,7 @@ See [docs/architecture.md](docs/architecture.md), [docs/pitfalls.md](docs/pitfal
 - [x] 4-stage extraction / hybrid retrieval / decay / per-chat isolation / scene isolation
 - [x] Installer (idempotent, backup, uninstall) + HTTP sidecar
 - [ ] In-chat management commands ("remember this" / "forget that")
-- [ ] Memory graph visualization panel
+- [x] Memory graph visualization panel (`viewer/index.html` works by double-click + `npm run graph` export, see [docs/visualization.md](docs/visualization.md))
 - [ ] Long-term theme summarization layer
 
 Issues and PRs welcome. MIT — see [LICENSE](LICENSE).

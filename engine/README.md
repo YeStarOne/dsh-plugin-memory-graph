@@ -79,6 +79,7 @@ await engine.close();   // 把缓冲刷完
 ## 上线前必做
 
 ```bash
+node tools/export_graph.js <数据目录> [输出目录]   # 导出图谱数据给 viewer/index.html 可视化
 node tools/check_embedding.js --base-url <向量端点> --model <向量模型> --dim <维度>
 ```
 

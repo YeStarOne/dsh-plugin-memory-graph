@@ -87,6 +87,8 @@ node <dsh-onebot-qq>/lib/memory-graph-engine/tools/check_embedding.js \
 
 全部字段与维护脚本（查/钉/删/重算向量）见 [docs/config.md](docs/config.md)。
 
+想**看**这套记忆长什么样？`npm run graph -- <数据目录> viewer` 导出后双击 `viewer/index.html`——力导向知识图谱、时间筛选、搜索、节点详情全都有（[docs/visualization.md](docs/visualization.md)）。
+
 ## 坑位手册
 
 这套系统踩过的坑全部写进了 [docs/pitfalls.md](docs/pitfalls.md)，最要紧的三条：
@@ -104,7 +106,7 @@ node <dsh-onebot-qq>/lib/memory-graph-engine/tools/check_embedding.js \
 - [x] 四阶段抽取 / 混合检索 / 衰减 / 每聊天分库 / 场景隔离
 - [x] 安装器（幂等/备份/卸载）+ HTTP 侧车
 - [ ] QQ 内管理指令（"记住这条"/"忘掉这条"）
-- [ ] 记忆图谱可视化面板
+- [x] 记忆图谱可视化面板（`viewer/index.html` 双击即用 + `npm run graph` 导出，见 [docs/visualization.md](docs/visualization.md)）
 - [ ] 摘要层（跨事件的长期主题归纳）
 
 欢迎 issue / PR。如果它帮你省了心，star 一下就是全部动力。
