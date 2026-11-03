@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.1 (2026-11-03)
+
+- **修复 viewer 首屏空白**：`boot()` 原以 IIFE 在脚本中段立即执行，同步走到的
+  `init()`/`rebuild()` 触及尚未声明的 `byId`/`simNodes`（TDZ），`<script src="graph-data.js">`
+  路径必崩（拖入文件与 fetch json 路径因异步不受影响）。改为函数声明 + 脚本末尾调用
+- 修复 `fitView()` 引用从未赋值的 `visNodes`（实际数据在 `simNodes`），自适应视图此前永远空转
+- 附无头验证 harness（内存 DOM 桩 + vm 跑页面脚本 + 泵力导向帧），修前复现 TDZ alert、
+  修后 25 节点/23 边全量渲染 PASS
+
 ## 1.2.0 (2026-11-03)
 
 - **QQ 内管理指令**：`记住：…` / `不许忘：…`（钉住）、`忘掉 …`（删除）、`我的记忆`、

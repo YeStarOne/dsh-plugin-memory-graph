@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-memory-graph",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "DSH (DeepSeek Harness) QQ 机器人长期记忆插件：对话→知识图谱→向量召回，回合前注入相关记忆，回合后后台抽取入库。Zero-dep graph + vector long-term memory for dsh-onebot-qq.",
   "keywords": [
     "dsh",

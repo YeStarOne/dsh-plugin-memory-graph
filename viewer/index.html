@@ -252,13 +252,13 @@ function useData(raw, from) {
   }
 }
 
-(function boot() {
+function boot() {
   if (window.MEMORY_GRAPH_DATA) { useData(window.MEMORY_GRAPH_DATA, 'graph-data.js'); return; }
   fetch('graph-data.json', { cache: 'no-store' })
     .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(json => useData(json, 'graph-data.json'))
     .catch(() => dropzone.classList.add('show'));
-})();
+}
 
 function handleFile(file) {
   const reader = new FileReader();
@@ -285,7 +285,7 @@ const state = {
   selected: null, searchHits: new Set(), query: ''
 };
 const byId = new Map();
-let visNodes = [], visEdges = [], nodeById = new Map();
+let nodeById = new Map();
 const deg = new Map();
 
 /* ================= 工具 ================= */
@@ -309,8 +309,8 @@ function svgPoint(clientX, clientY) {
   return { x: (clientX - r.left - view.x) / view.k, y: (clientY - r.top - view.y) / view.k };
 }
 function fitView() {
-  if (!visNodes.length) return;
-  const xs = visNodes.map(n => n.x), ys = visNodes.map(n => n.y);
+  if (!simNodes.length) return;
+  const xs = simNodes.map(n => n.x), ys = simNodes.map(n => n.y);
   const minX = Math.min(...xs) - 60, maxX = Math.max(...xs) + 60;
   const minY = Math.min(...ys) - 60, maxY = Math.max(...ys) + 60;
   const r = svg.getBoundingClientRect();
@@ -671,6 +671,8 @@ document.getElementById('customOnly').addEventListener('change', e => { state.cu
 document.getElementById('reheat').addEventListener('click', () => { for (const n of simNodes) { n.x = undefined; n.y = undefined; } rebuild(true); });
 document.getElementById('fitBtn').addEventListener('click', fitView);
 window.addEventListener('resize', fitView);
+
+boot();
 </script>
 </body>
 </html>
