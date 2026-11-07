@@ -152,6 +152,16 @@ npm run graph -- ~/.dsh/memory-graph-data viewer    # 导出（--all 可合并�
 
 完整十条见 [docs/pitfalls.md](docs/pitfalls.md)——每一条都是真实 7×24 环境里踩出来的。
 
+## 🧪 记忆评测：官方基准 714 题作者侧自测
+
+在 [chat-memory-benchmark](https://github.com/Ornn8/chat-memory-benchmark)（六人物正式集 714 题、每人 182 天历史、最远 45 天提问）上，用官方判分流程 `grade.py` 跑了完整一卷：
+
+![大肥鱼好记性 × chat-memory-benchmark 成绩单](docs/assets/benchmark-2026-11-07.png)
+
+- **整题通过 502 / 714（70.3%）**：相关性 100%、事实项 70.3%；最好人物 81.8%，最长时程（45 天档）62.3%。
+- **胜在便宜**：整套作答链路（记忆抽取 + 向量嵌入 + 作答）按公开单价折算 **¥2.91**，平均每通过 1 题 **¥0.0058**。记忆全存本地 JSONL、检索在本地跑，没有数据库、不需要常驻大模型。
+- 口径：作者侧自测；判卷 glm-5.3-flash 单票（非官方 Codex 判卷），与其他系统的对比仅作量级参考；免费车道也按公开单价折算，判卷开销不计入。
+
 ## 🗄 备份
 
 数据是纯文本 JSONL，直接进 git（建议私有仓）：[examples/backup-sync.sh](examples/backup-sync.sh) + cron 一行。记忆是你们俩的事，别放在只有一份的地方。
